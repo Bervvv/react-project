@@ -1,38 +1,32 @@
 import React, { useState, useEffect } from 'react';
 
 function GetInfo() {
-  const [data, setData] = useState([]);
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [filter, setFilter] = useState('');
-  const [delay, setDelay] = useState(3);
+  const [filter, setFilter] = useState(" ");
+  const [delay, setDelay] = useState(1);
   const [lastLoadTime, setLastLoadTime] = useState(null);
   const [error, setError] = useState(null);
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      // const startTime = Date.now();
-      const response = await fetch(`https://reqres.in/api/users?delay=${delay}`);
-      // const endTime = Date.now();
-      // const delayedTime = endTime - startTime;
-      
-      setData(response.json());
-      setLastLoadTime(new Date().toLocaleString());
-      setError(null);
-    } catch (err) {
-      if (err.code === 'ECONNABORTED') {
-        setError('Request timeout. Please try again later.');
-      } else {
-        setError('An error occurred while fetching data.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData(delay);
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await Promise.race([
+          fetch(`https://reqres.in/api/users?delay=${delay}`),
+          new Promise((resolve,reject) => setTimeout(() => reject(new Error('Timeout')),3000))
+      ]);
+        const data = await response.json();
+        setUsers(data.data);
+      } catch (err) {
+          setError('Timeout Error: Loading more than 3s');
+        }
+        finally {
+        setIsLoading(false);
+        setLastLoadTime(new Date().toLocaleTimeString());
+      }
+    };
+    fetchData();
   }, [delay]);
 
   const filteredUsers = users.filter((user) =>
@@ -54,7 +48,7 @@ function GetInfo() {
             type="text"
             placeholder="Filter by name or email"
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(event) => setFilter(event.target.value)}
           />
           <button onClick={() => setDelay(5)}>Simulate 5-second delay</button>
           <p>Last data load time: {lastLoadTime}</p>
